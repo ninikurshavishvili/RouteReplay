@@ -1,12 +1,14 @@
+//
+//  TestData.swift
+//  RouteReplay
+//
+//  Created by Nini Kurshavishvili on 21/10/2026.
+//
+
 import Foundation
 import RouteReplay
 
-/// Shared values for tests.
-///
-/// Times use whole, half and quarter seconds: they are exact both as `Double` and as
-/// millisecond ISO 8601 strings, so values compare equal after a save and load.
 enum TestData {
-    /// 2026-10-21T10:00:00Z
     static let start = Date(timeIntervalSince1970: 1_792_576_800)
 
     static let fullPoint = RoutePoint(
