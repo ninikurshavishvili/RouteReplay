@@ -8,7 +8,7 @@ let package = Package(
         .library(name: "RouteReplay", targets: ["RouteReplay"])
     ],
     targets: [
-        .target(name: "RouteReplay"),
+        .target(name: "RouteReplay", resources: [.process("Resources")]),
         .testTarget(
             name: "RouteReplayTests",
             dependencies: ["RouteReplay"],
