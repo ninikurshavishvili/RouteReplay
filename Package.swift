@@ -9,6 +9,10 @@ let package = Package(
     ],
     targets: [
         .target(name: "RouteReplay"),
-        .testTarget(name: "RouteReplayTests", dependencies: ["RouteReplay"])
+        .testTarget(
+            name: "RouteReplayTests",
+            dependencies: ["RouteReplay"],
+            resources: [.process("Fixtures")]
+        )
     ]
 )
