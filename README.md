@@ -1,10 +1,12 @@
 # RouteReplay
-RouteReplay is an open-source Swift package (iOS 17+ / macOS 14+, Swift 6 strict concurrency, swift-tools-version 6.0, zero dependencies) that records real GPS routes and replays them as a fake location stream. Repo: github.com/ninikurshavishvili/RouteReplay (public); local checkout
+**Record a real route once, replay it anywhere: in the simulator, in SwiftUI previews and in unit tests, at any speed.**
+
+RouteReplay is an open-source Swift package that records real GPS routes and replays them as a fake location stream.
+
 Testing location features is slow. You walk or drive around with your phone, or use Xcode's GPX simulation, which is set per scheme, is hard to control while the app runs, and doesn't work in unit tests or SwiftUI previews.
 
 RouteReplay feeds a recorded route through the same interface your app uses for real GPS. Your app code doesn't change, replay needs no location permission, and you can pause it or play it 50 times faster.
 
-**Record a real route once, replay it anywhere: in the simulator, in SwiftUI previews and in unit tests, at any speed.**
 
 ![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
 ![iOS 17+](https://img.shields.io/badge/iOS-17%2B-0A84FF)
