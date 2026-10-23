@@ -20,8 +20,6 @@ RouteReplay feeds a recorded route through the same interface your app uses for 
 > The recorder and the debug map are next. See the [roadmap](#roadmap).
 
 
-
-
 ## How it works
 
 ```mermaid
