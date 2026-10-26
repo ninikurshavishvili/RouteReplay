@@ -5,6 +5,7 @@ Anything not in the v1 scope goes here so v1 can ship.
 ## Recording
 - Background recording (needs `NSLocationAlwaysAndWhenInUseUsageDescription` + Background Modes → Location updates)
 - Pause / resume while recording
+- Skip Core Location's cached first location, which can be minutes old (a timestamp from before `start()`)
 - Store vertical accuracy in `RoutePoint` (today `makeLocation()` uses horizontal accuracy as a stand-in)
 
 ## Formats

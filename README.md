@@ -16,8 +16,8 @@ RouteReplay feeds a recorded route through the same interface your app uses for 
 
 <!-- TODO: add a GIF of the debug map replaying a route here -->
 
-> **Status: work in progress toward v0.1.0.** Replay and JSON/GPX route files work today.
-> The recorder and the debug map are next. See the [roadmap](#roadmap).
+> **Status: work in progress toward v0.1.0.** Recording, replay and JSON/GPX route files work today.
+> The debug map is next. See the [roadmap](#roadmap).
 
 
 ## How it works
@@ -25,7 +25,7 @@ RouteReplay feeds a recorded route through the same interface your app uses for 
 ```mermaid
 flowchart LR
     subgraph Record["Record once, on an iPhone"]
-        Live[LiveLocationProvider] --> Recorder["RouteRecorder (coming soon)"]
+        Live[LiveLocationProvider] --> Recorder[RouteRecorder]
     end
     Recorder --> File[("route.json / route.gpx")]
     File --> Replay[ReplayLocationProvider]
@@ -38,6 +38,7 @@ flowchart LR
 | `LocationProvider` | The one protocol your app depends on: `func locations() -> AsyncStream<CLLocation>` |
 | `LiveLocationProvider` | Real GPS from Core Location, for production |
 | `ReplayLocationProvider` | Replays a route, waiting the recorded time between points divided by the speed |
+| `RouteRecorder` | Records a route from any provider, skipping inaccurate fixes and points too close to the last one |
 | `RecordedRoute` | A named list of points (position, altitude, accuracy, speed, course, time), saved as JSON or GPX |
 
 ## Installation
@@ -112,6 +113,26 @@ await player.stop()         // pause and rewind to the first point
 
 Every stream from one player shares a single playhead, so a map and a tracker that both listen to it always see the same point. Without `loop`, the streams finish after the last point.
 
+## Recording a route
+
+```swift
+let recorder = RouteRecorder()   // real GPS; or RouteRecorder(provider: anyProvider)
+
+// Draw the path while recording. Ignoring the stream is fine too.
+for await point in await recorder.start() {
+    path.append(point)
+}
+
+// When the user taps Stop:
+let route = await recorder.stop(name: "Evening walk")
+try route.save(to: fileURL, format: .json)
+```
+
+- A location is kept only if its horizontal accuracy is no worse than `maximumAccuracy` (30 m by default) and it's at least `minimumDistance` (5 m by default) from the last kept point. Bad fixes are dropped, and standing still doesn't add distance.
+- Recording runs until you call `stop(name:)` or the provider's stream finishes. A consumer that stops listening doesn't end it, and releasing the recorder stops the provider.
+- The recorder works with any `LocationProvider`, so you can test recording code with a replay instead of a walk.
+- Recording runs while your app is in the foreground. Background recording is on the [ideas list](IDEAS.md).
+
 ## Route files
 
 ```swift
@@ -162,14 +183,14 @@ For full control over time, pass your own `Clock` with `ReplayLocationProvider(r
 ## Permissions
 
 - **Replay** needs none, because it never touches real GPS.
-- **`LiveLocationProvider`** needs `NSLocationWhenInUseUsageDescription` in your app's Info.plist and When In Use authorization, for example `CLLocationManager().requestWhenInUseAuthorization()`.
+- **`LiveLocationProvider`**, and `RouteRecorder`, which uses it by default, need `NSLocationWhenInUseUsageDescription` in your app's Info.plist and When In Use authorization, for example `CLLocationManager().requestWhenInUseAuthorization()`.
 
 ## Roadmap
 
 **v0.1.0**
 - [x] `LocationProvider`, `LiveLocationProvider`, `ReplayLocationProvider` (speed, pause, stop, loop)
 - [x] JSON and GPX import and export
-- [ ] `RouteRecorder` with accuracy and distance filtering
+- [x] `RouteRecorder` with accuracy and distance filtering
 - [ ] `RouteDebugMap`: a SwiftUI map with the route line, a moving dot and play controls
 - [ ] A bundled sample route for previews
 - [ ] DocC documentation and CI
