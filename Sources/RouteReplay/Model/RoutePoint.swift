@@ -20,6 +20,7 @@ public struct RoutePoint: Codable, Sendable, Equatable, Hashable {
     /// When the location was measured.
     public let timestamp: Date
 
+    /// Creates a point. Leave out the values that weren't measured.
     public init(
         latitude: Double,
         longitude: Double,

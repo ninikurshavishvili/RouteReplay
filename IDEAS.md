@@ -3,7 +3,7 @@
 Anything not in the v1 scope goes here so v1 can ship.
 
 ## Recording
-- Background recording (needs `NSLocationAlwaysAndWhenInUseUsageDescription` + Background Modes → Location updates)
+- Background recording: an opt-in `CLBackgroundActivitySession` in `LiveLocationProvider`, plus Background Modes → Location updates in the app. When In Use permission is enough on iOS 17+.
 - Pause / resume while recording
 - Skip Core Location's cached first location, which can be minutes old (a timestamp from before `start()`)
 - Store vertical accuracy in `RoutePoint` (today `makeLocation()` uses horizontal accuracy as a stand-in)

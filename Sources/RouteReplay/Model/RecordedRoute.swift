@@ -9,6 +9,7 @@ public struct RecordedRoute: Codable, Sendable, Equatable {
     /// The recorded points, in the order they were measured.
     public let points: [RoutePoint]
 
+    /// Creates a route from points you already have, for example in tests.
     public init(name: String, recordedAt: Date, points: [RoutePoint]) {
         self.name = name
         self.recordedAt = recordedAt

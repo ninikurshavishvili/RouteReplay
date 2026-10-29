@@ -29,9 +29,12 @@ public actor ReplayLocationProvider: LocationProvider {
 
     /// - Parameters:
     ///   - route: The route to replay.
-    ///   - speed: How many times faster than real time to replay. Must be greater than zero.
+    ///   - speed: How many times faster than real time to replay. `.infinity` sends every point
+    ///     without waiting.
     ///   - loop: Whether to start over from the first point after the last one.
     ///   - clock: The clock used to wait between points. Tests pass a clock they control.
+    ///
+    /// - Precondition: `speed > 0`.
     public init(
         route: RecordedRoute,
         speed: Double = 1,
@@ -78,6 +81,8 @@ public actor ReplayLocationProvider: LocationProvider {
     }
 
     /// Changes the replay speed, starting from the next gap between points.
+    ///
+    /// - Precondition: `speed > 0`.
     public func setSpeed(_ speed: Double) {
         precondition(speed > 0, "Replay speed must be greater than zero.")
         self.speed = speed
