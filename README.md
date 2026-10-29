@@ -1,68 +1,32 @@
 # RouteReplay
-**Record a real route once, replay it anywhere: in the simulator, in SwiftUI previews and in unit tests, at any speed.**
 
-RouteReplay is an open-source Swift package that records real GPS routes and replays them as a fake location stream.
+[![Tests](https://github.com/ninikurshavishvili/RouteReplay/actions/workflows/tests.yml/badge.svg)](https://github.com/ninikurshavishvili/RouteReplay/actions/workflows/tests.yml)
 
-Testing location features is slow. You walk or drive around with your phone, or use Xcode's GPX simulation, which is set per scheme, is hard to control while the app runs, and doesn't work in unit tests or SwiftUI previews.
+Record a GPS route once, then replay it as if it were live: in the simulator, in SwiftUI previews and in unit tests.
 
-RouteReplay feeds a recorded route through the same interface your app uses for real GPS. Your app code doesn't change, replay needs no location permission, and you can pause it or play it 50 times faster.
+<!-- GIF -->
 
-
-![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
-![iOS 17+](https://img.shields.io/badge/iOS-17%2B-0A84FF)
-![Swift Package Manager](https://img.shields.io/badge/SPM-compatible-34C759)
-![Dependencies: none](https://img.shields.io/badge/dependencies-none-34C759)
-![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)
-
-<!-- TODO: add a GIF of the debug map replaying a route here -->
-
-> **Status: work in progress toward v0.1.0.** Recording, replay and JSON/GPX route files work today.
-> The debug map is next. See the [roadmap](#roadmap).
-
-
-## How it works
-
-```mermaid
-flowchart LR
-    subgraph Record["Record once, on an iPhone"]
-        Live[LiveLocationProvider] --> Recorder[RouteRecorder]
-    end
-    Recorder --> File[("route.json / route.gpx")]
-    File --> Replay[ReplayLocationProvider]
-    Live -. production .-> App
-    Replay -. simulator, previews, tests .-> App["Your app, which only knows LocationProvider"]
-```
-
-| Type | What it is |
-| --- | --- |
-| `LocationProvider` | The one protocol your app depends on: `func locations() -> AsyncStream<CLLocation>` |
-| `LiveLocationProvider` | Real GPS from Core Location, for production |
-| `ReplayLocationProvider` | Replays a route, waiting the recorded time between points divided by the speed |
-| `RouteRecorder` | Records a route from any provider, skipping inaccurate fixes and points too close to the last one |
-| `RecordedRoute` | A named list of points (position, altitude, accuracy, speed, course, time), saved as JSON or GPX |
+Testing location code usually means walking around with your phone. Xcode can simulate a GPX route while the app runs, but not in previews or unit tests, and you can't pause it or speed it up from your code. RouteReplay lets you record a walk once and replay it at your desk, as fast as you like.
 
 ## Installation
 
-In Xcode: **File → Add Package Dependencies…** and enter:
+In Xcode, choose **File → Add Package Dependencies…** and paste:
 
 ```text
 https://github.com/ninikurshavishvili/RouteReplay.git
 ```
 
-Or in `Package.swift`:
+Or add it to `Package.swift`:
 
 ```swift
-dependencies: [
-    // Switch to `from: "0.1.0"` once v0.1.0 is released.
-    .package(url: "https://github.com/ninikurshavishvili/RouteReplay.git", branch: "main")
-]
+.package(url: "https://github.com/ninikurshavishvili/RouteReplay.git", from: "0.1.0")
 ```
 
-Requires iOS 17+ or macOS 14+ and Xcode 16+ (Swift 6). It has no dependencies.
+It needs iOS 17 or macOS 14 and Swift 6. It has no dependencies.
 
-## Quick start
+## Usage
 
-**1. Depend on the protocol, not on Core Location.**
+Read locations through `LocationProvider` instead of Core Location:
 
 ```swift
 import CoreLocation
@@ -86,130 +50,73 @@ final class WalkTracker {
 }
 ```
 
-**2. Give it real GPS in production and a replay everywhere else.**
+Then give it real GPS in the app and a replay everywhere else:
 
 ```swift
-// Production
-let liveTracker = WalkTracker(provider: LiveLocationProvider())
+let live = WalkTracker(provider: LiveLocationProvider())
 
-// Simulator, previews and tests: a route file added to your app
-let url = Bundle.main.url(forResource: "tbilisi-walk", withExtension: "gpx")!
-let route = try RecordedRoute(contentsOf: url)
-let replayTracker = WalkTracker(provider: ReplayLocationProvider(route: route, speed: 10, loop: true))
+let route = try RecordedRoute(contentsOf: walkURL)  // a .json or .gpx file
+let replay = WalkTracker(provider: ReplayLocationProvider(route: route, speed: 10, loop: true))
 ```
 
-Replayed locations are stamped with the current time, so code that ignores old locations still accepts them.
+The replay waits the recorded time between points, divided by `speed`, and stamps each location with the current time, so your code treats it as fresh GPS. You can call `pause()`, `play()`, `stop()` and `setSpeed(_:)` while it runs. Every stream from one player shares the same position in the route, so a map and a tracker stay in step.
 
-## Controlling playback
-
-```swift
-let player = ReplayLocationProvider(route: route)
-
-await player.pause()        // hold the next point
-await player.setSpeed(20)   // 20x, from the next point on
-await player.play()
-await player.stop()         // pause and rewind to the first point
-```
-
-Every stream from one player shares a single playhead, so a map and a tracker that both listen to it always see the same point. Without `loop`, the streams finish after the last point.
-
-## Recording a route
+### Recording a route
 
 ```swift
-let recorder = RouteRecorder()   // real GPS; or RouteRecorder(provider: anyProvider)
+let recorder = RouteRecorder()
 
-// Draw the path while recording. Ignoring the stream is fine too.
 for await point in await recorder.start() {
-    path.append(point)
+    path.append(point)  // draw the path as it grows
 }
 
 // When the user taps Stop:
 let route = await recorder.stop(name: "Evening walk")
-try route.save(to: fileURL, format: .json)
+try route.save(to: fileURL, format: .json)  // or .gpx
 ```
 
-- A location is kept only if its horizontal accuracy is no worse than `maximumAccuracy` (30 m by default) and it's at least `minimumDistance` (5 m by default) from the last kept point. Bad fixes are dropped, and standing still doesn't add distance.
-- Recording runs until you call `stop(name:)` or the provider's stream finishes. A consumer that stops listening doesn't end it, and releasing the recorder stops the provider.
-- The recorder works with any `LocationProvider`, so you can test recording code with a replay instead of a walk.
-- Recording runs while your app is in the foreground. Background recording is on the [ideas list](IDEAS.md).
+The recorder skips fixes worse than 30 m and points closer than 5 m to the last one, so standing still doesn't add distance. Both limits are parameters.
 
-## Route files
+### Previews and tests
+
+`RouteDebugMap` shows a replay on a map with play, restart and speed buttons. `RecordedRoute.sample` is a walk in Tbilisi that comes with the package.
 
 ```swift
-let route = try RecordedRoute(contentsOf: url)     // .json or .gpx, chosen by the file extension
-try route.save(to: fileURL, format: .json)         // or .gpx
-```
-
-- **JSON** is RouteReplay's own format. It keeps every field, and times keep their milliseconds.
-- **GPX 1.1** works with map and fitness apps. Import reads tracks, routes and Xcode's own location-simulation files, so you can replay GPX files you already have. GPX has no accuracy, speed or course fields, so imported points get 5 m accuracy, and export keeps position, altitude and time only.
-
-```json
-{
-  "name": "Rustaveli walk",
-  "recordedAt": "2026-10-21T10:00:00.000Z",
-  "points": [
-    { "latitude": 41.6977, "longitude": 44.799, "horizontalAccuracy": 5, "timestamp": "2026-10-21T10:00:00.000Z" }
-  ]
+#Preview {
+    RouteDebugMap(player: ReplayLocationProvider(route: .sample, speed: 10, loop: true))
 }
 ```
 
-## In unit tests
-
-Replay needs no device and no permission. Use a high speed so the test finishes quickly:
+A replay needs no device and no permission. With `speed: .infinity` it sends every point without waiting:
 
 ```swift
-@Test func replaysTheWholeWalk() async throws {
-    let provider = ReplayLocationProvider(route: route, speed: 1_000)
+@Test func replaysTheWholeWalk() async {
+    let provider = ReplayLocationProvider(route: .sample, speed: .infinity)
 
     var count = 0
     for await _ in provider.locations() {
         count += 1
     }
 
-    #expect(count == route.points.count)
+    #expect(count == RecordedRoute.sample.points.count)
 }
 ```
 
-For full control over time, pass your own `Clock` with `ReplayLocationProvider(route:speed:loop:clock:)`.
+## Good to know
 
-## In SwiftUI previews
+- Your code has to read locations through `LocationProvider`. Code that uses `CLLocationManager` directly needs a small refactor first.
+- It covers location updates only: no heading, region monitoring or visits.
+- Recording stops when the app goes to the background. Background recording is on the [ideas list](IDEAS.md).
+- GPX has no accuracy, speed or course fields, so imported points get 5 m accuracy and exported files leave those out. JSON keeps everything.
+- `LiveLocationProvider`, and `RouteRecorder` with its default provider, need `NSLocationWhenInUseUsageDescription` in Info.plist and When In Use permission.
 
-```swift
-#Preview {
-    WalkView(tracker: WalkTracker(provider: ReplayLocationProvider(route: route, speed: 10, loop: true)))
-}
-```
+## Demo app
 
-## Permissions
-
-- **Replay** needs none, because it never touches real GPS.
-- **`LiveLocationProvider`**, and `RouteRecorder`, which uses it by default, need `NSLocationWhenInUseUsageDescription` in your app's Info.plist and When In Use authorization, for example `CLLocationManager().requestWhenInUseAuthorization()`.
-
-## Roadmap
-
-**v0.1.0**
-- [x] `LocationProvider`, `LiveLocationProvider`, `ReplayLocationProvider` (speed, pause, stop, loop)
-- [x] JSON and GPX import and export
-- [x] `RouteRecorder` with accuracy and distance filtering
-- [ ] `RouteDebugMap`: a SwiftUI map with the route line, a moving dot and play controls
-- [ ] A bundled sample route for previews
-- [ ] DocC documentation and CI
-
-**Later** ([IDEAS.md](IDEAS.md)): seek, smooth interpolation, background recording, KML and GeoJSON, a geofence debugger, a Flutter plugin.
+[Retrace](https://github.com/ninikurshavishvili/Retrace) is a small iPhone app built on RouteReplay. It records walks, lists them and replays them on a map.
 
 ## Contributing
 
-Issues and pull requests are welcome. Run the tests with:
-
-```bash
-swift test
-```
-
-and on an iOS Simulator you have installed, for example:
-
-```bash
-xcodebuild test -scheme RouteReplay -destination 'platform=iOS Simulator,name=iPhone 16'
-```
+Issues and pull requests are welcome. Run the tests with `swift test`.
 
 ## License
 

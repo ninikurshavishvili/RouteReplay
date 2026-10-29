@@ -17,6 +17,7 @@ public struct LiveLocationProvider: LocationProvider {
         self.configuration = configuration
     }
 
+    /// Returns a stream of real GPS locations. Core Location stops when the consumer stops iterating.
     public func locations() -> AsyncStream<CLLocation> {
         Self.locations(from: CLLocationUpdate.liveUpdates(configuration)) { $0.location }
     }

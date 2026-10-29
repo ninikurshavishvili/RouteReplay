@@ -1,0 +1,40 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to the same branch cancels the run that's still going.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Show the toolchain
+        run: xcodebuild -version && swift --version
+      - name: Run tests
+        run: swift test
+
+  ios:
+    name: iOS Simulator
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Show the toolchain
+        run: xcodebuild -version
+      - name: Run tests
+        # Simulator names change with each runner image, so use the first iPhone that's installed.
+        run: |
+          udid=$(xcrun simctl list devices available | grep -m1 -E '^ +iPhone' | grep -oE '[0-9A-F-]{36}')
+          echo "Simulator: $(xcrun simctl list devices available | grep "$udid")"
+          xcodebuild test -scheme RouteReplay -destination "id=$udid"

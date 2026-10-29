@@ -1,7 +1,9 @@
 import CoreLocation
 
 extension RoutePoint {
-
+    /// Creates a point from a Core Location location.
+    ///
+    /// Altitude, speed and course are `nil` when Core Location marks them invalid with a negative value.
     public init(_ location: CLLocation) {
         self.init(
             latitude: location.coordinate.latitude,
@@ -14,7 +16,9 @@ extension RoutePoint {
         )
     }
 
-
+    /// Makes a Core Location location from the point. Missing values become Core Location's invalid values.
+    ///
+    /// - Parameter timestamp: The time to stamp on the location, or `nil` for the point's own time.
     public func makeLocation(timestamp: Date? = nil) -> CLLocation {
         CLLocation(
             coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),

@@ -106,6 +106,63 @@ struct ReplayTimingTests {
         #expect(await points.next() == nil)
     }
 
+    @Test func onePointRouteSendsItOnceThenFinishes() async {
+        let clock = TestClock()
+        let player = ReplayLocationProvider(route: makeRoute(pointCount: 1, gap: 0), clock: clock)
+        let points = PointReader(player.locations())
+
+        #expect(await points.next() == 0)
+        #expect(await points.next() == nil)
+        #expect(clock.sleeps.isEmpty)
+    }
+
+    @Test func onePointRouteLoopsTheSamePoint() async {
+        let clock = TestClock()
+        let player = ReplayLocationProvider(route: makeRoute(pointCount: 1, gap: 0), loop: true, clock: clock)
+        let points = PointReader(player.locations())
+
+        #expect(await points.next() == 0)
+        await clock.waitForSleepers()
+        clock.advance(by: .seconds(ReplayLocationProvider.loopRestartGap))
+        #expect(await points.next() == 0)
+        #expect(clock.sleeps.first == .seconds(ReplayLocationProvider.loopRestartGap))
+    }
+
+    @Test func timestampsGoingBackwardsReplayWithoutWaiting() async {
+        let clock = TestClock()
+        let route = makeRoute(pointCount: 3, gap: 10)
+        let unsorted = RecordedRoute(
+            name: route.name,
+            recordedAt: route.recordedAt,
+            points: [route.points[0], route.points[2], route.points[1]]
+        )
+        let player = ReplayLocationProvider(route: unsorted, clock: clock)
+        let points = PointReader(player.locations())
+
+        #expect(await points.next() == 0)
+        await clock.waitForSleepers()
+        clock.advance(by: .seconds(20))
+        #expect(await points.next() == 2)
+        // Point 1 was measured before point 2, so the gap is negative and there's no wait.
+        #expect(await points.next() == 1)
+        #expect(await points.next() == nil)
+
+        #expect(clock.sleeps == [.seconds(20), .zero])
+    }
+
+    @Test func infiniteSpeedReplaysEveryPointWithoutWaiting() async {
+        let clock = TestClock()
+        let player = ReplayLocationProvider(route: makeRoute(pointCount: 4, gap: 3_600), speed: .infinity, clock: clock)
+
+        var received: [Int] = []
+        for await location in player.locations() {
+            received.append(Int(location.coordinate.longitude))
+        }
+
+        #expect(received == [0, 1, 2, 3])
+        #expect(clock.sleeps == [.zero, .zero, .zero])
+    }
+
     @Test func lateStreamJoinsTheSharedPlayhead() async {
         let clock = TestClock()
         let player = ReplayLocationProvider(route: makeRoute(pointCount: 3, gap: 10), clock: clock)
